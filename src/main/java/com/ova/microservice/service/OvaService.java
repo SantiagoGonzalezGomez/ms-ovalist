@@ -2,12 +2,11 @@ package com.ova.microservice.service;
 
 import com.ova.microservice.model.Ova;
 import com.ova.microservice.dto.OvaRequest;
+import com.ova.microservice.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -17,9 +16,7 @@ public class OvaService {
     private final List<Ova> ovas = new ArrayList<>();
     private final AtomicLong counter = new AtomicLong(1);
 
-    // Constructor con datos de ejemplo para probar
     public OvaService() {
-        // Agregamos algunos OVAs de ejemplo
         agregarOvaEjemplo("Introducción a Java",
                 "Curso básico de programación en Java",
                 "Carlos Rodríguez",
@@ -39,7 +36,6 @@ public class OvaService {
                 4.8);
     }
 
-    // Método helper para agregar OVAs de ejemplo
     private void agregarOvaEjemplo(String titulo, String descripcion, String autor,
                                    String url, String categoria, String nivel,
                                    Integer duracion, Double calificacion) {
@@ -49,16 +45,44 @@ public class OvaService {
                 true));
     }
 
-    // Obtener todos los OVAs activos
-    public List<Ova> getAllOvas() {
-        return filtrarOvasActivos(ovas);
+    // Obtener todos los OVAs con paginación y filtros
+    public Map<String, Object> getAllOvasPaginados(int pagina, int tamaño, String categoria, String search) {
+
+        List<Ova> ovasFiltradas = ovas.stream()
+                .filter(Ova::getActivo)
+                .filter(ova -> categoria == null || ova.getCategoria().equalsIgnoreCase(categoria))
+                .filter(ova -> search == null ||
+                        ova.getTitulo().toLowerCase().contains(search.toLowerCase()) ||
+                        ova.getDescripcion().toLowerCase().contains(search.toLowerCase()) ||
+                        ova.getAutor().toLowerCase().contains(search.toLowerCase()))
+                .collect(Collectors.toList());
+
+        int inicio = pagina * tamaño;
+        int fin = Math.min(inicio + tamaño, ovasFiltradas.size());
+
+        if (inicio > ovasFiltradas.size()) {
+            inicio = 0;
+            fin = Math.min(tamaño, ovasFiltradas.size());
+        }
+
+        List<Ova> ovasPagina = ovasFiltradas.subList(inicio, fin);
+
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("ovas", ovasPagina);
+        respuesta.put("paginaActual", pagina);
+        respuesta.put("totalPaginas", (int) Math.ceil((double) ovasFiltradas.size() / tamaño));
+        respuesta.put("totalOvas", ovasFiltradas.size());
+        respuesta.put("tamañoPagina", tamaño);
+
+        return respuesta;
     }
 
-    // Obtener OVA por ID
-    public Optional<Ova> getOvaById(Long id) {
+    // Obtener OVA por ID - ahora lanza excepción
+    public Ova getOvaById(Long id) {
         return ovas.stream()
                 .filter(ova -> ova.getId().equals(id) && ova.getActivo())
-                .findFirst();
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("OVA no encontrado con id: " + id));
     }
 
     // Crear nuevo OVA
@@ -80,18 +104,13 @@ public class OvaService {
         return ova;
     }
 
-    // Actualizar OVA
-    public Optional<Ova> updateOva(Long id, OvaRequest ovaRequest) {
-        Optional<Ova> existingOva = getOvaById(id);
-        if (existingOva.isPresent()) {
-            Ova ova = existingOva.get();
-            actualizarOvaDesdeRequest(ova, ovaRequest);
-            return Optional.of(ova);
-        }
-        return Optional.empty();
+    // Actualizar OVA - ahora lanza excepción
+    public Ova updateOva(Long id, OvaRequest ovaRequest) {
+        Ova existingOva = getOvaById(id);
+        actualizarOvaDesdeRequest(existingOva, ovaRequest);
+        return existingOva;
     }
 
-    // Método helper para actualizar OVA desde request
     private void actualizarOvaDesdeRequest(Ova ova, OvaRequest request) {
         ova.setTitulo(request.getTitulo());
         ova.setDescripcion(request.getDescripcion());
@@ -103,38 +122,23 @@ public class OvaService {
         ova.setCalificacion(request.getCalificacion());
     }
 
-    // Eliminar OVA (soft delete)
-    public boolean deleteOva(Long id) {
-        Optional<Ova> ova = getOvaById(id);
-        if (ova.isPresent()) {
-            ova.get().setActivo(false);
-            return true;
-        }
-        return false;
+    // Eliminar OVA - ahora lanza excepción
+    public void deleteOva(Long id) {
+        Ova ova = getOvaById(id);
+        ova.setActivo(false);
     }
 
     // Buscar OVAs por categoría
     public List<Ova> getOvasByCategoria(String categoria) {
-        return filtrarOvasActivos(
-                ovas.stream()
-                        .filter(ova -> ova.getCategoria().equalsIgnoreCase(categoria))
-                        .collect(Collectors.toList())
-        );
+        return ovas.stream()
+                .filter(ova -> ova.getCategoria().equalsIgnoreCase(categoria) && ova.getActivo())
+                .collect(Collectors.toList());
     }
 
     // Buscar OVAs por título (búsqueda parcial)
     public List<Ova> searchOvasByTitulo(String titulo) {
-        return filtrarOvasActivos(
-                ovas.stream()
-                        .filter(ova -> ova.getTitulo().toLowerCase().contains(titulo.toLowerCase()))
-                        .collect(Collectors.toList())
-        );
-    }
-
-    // Método helper para filtrar OVAs activos
-    private List<Ova> filtrarOvasActivos(List<Ova> listaOvas) {
-        return listaOvas.stream()
-                .filter(Ova::getActivo)
+        return ovas.stream()
+                .filter(ova -> ova.getTitulo().toLowerCase().contains(titulo.toLowerCase()) && ova.getActivo())
                 .collect(Collectors.toList());
     }
 }

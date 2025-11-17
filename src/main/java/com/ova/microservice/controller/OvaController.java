@@ -9,29 +9,33 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ovas")
-@CrossOrigin(origins = "*") // Para permitir requests desde Postman
+@CrossOrigin(origins = "*")
 public class OvaController {
 
     @Autowired
     private OvaService ovaService;
 
-    // GET - Obtener todos los OVAs
+    // GET - Obtener todos los OVAs con paginación y filtros
     @GetMapping
-    public ResponseEntity<List<Ova>> getAllOvas() {
-        List<Ova> ovas = ovaService.getAllOvas();
-        return ResponseEntity.ok(ovas);
+    public ResponseEntity<Map<String, Object>> getAllOvas(
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "10") int tamaño,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) String search) {
+
+        Map<String, Object> respuesta = ovaService.getAllOvasPaginados(pagina, tamaño, categoria, search);
+        return ResponseEntity.ok(respuesta);
     }
 
     // GET - Obtener OVA por ID
     @GetMapping("/{id}")
     public ResponseEntity<Ova> getOvaById(@PathVariable Long id) {
-        Optional<Ova> ova = ovaService.getOvaById(id);
-        return ova.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Ova ova = ovaService.getOvaById(id);
+        return ResponseEntity.ok(ova);
     }
 
     // POST - Crear nuevo OVA
@@ -45,19 +49,15 @@ public class OvaController {
     @PutMapping("/{id}")
     public ResponseEntity<Ova> updateOva(@PathVariable Long id,
                                          @Valid @RequestBody OvaRequest ovaRequest) {
-        Optional<Ova> updatedOva = ovaService.updateOva(id, ovaRequest);
-        return updatedOva.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Ova updatedOva = ovaService.updateOva(id, ovaRequest);
+        return ResponseEntity.ok(updatedOva);
     }
 
     // DELETE - Eliminar OVA
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteOva(@PathVariable Long id) {
-        boolean deleted = ovaService.deleteOva(id);
-        if (deleted) {
-            return ResponseEntity.ok().body("OVA eliminado correctamente");
-        }
-        return ResponseEntity.notFound().build();
+        ovaService.deleteOva(id);
+        return ResponseEntity.ok().body("OVA eliminado correctamente");
     }
 
     // GET - Buscar OVAs por categoría

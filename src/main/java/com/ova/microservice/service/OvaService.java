@@ -45,7 +45,6 @@ public class OvaService {
                 true));
     }
 
-    // Obtener todos los OVAs con paginación y filtros
     public Map<String, Object> getAllOvasPaginados(int pagina, int tamaño, String categoria, String search) {
 
         List<Ova> ovasFiltradas = ovas.stream()
@@ -77,7 +76,6 @@ public class OvaService {
         return respuesta;
     }
 
-    // Obtener OVA por ID - ahora lanza excepción
     public Ova getOvaById(Long id) {
         return ovas.stream()
                 .filter(ova -> ova.getId().equals(id) && ova.getActivo())
@@ -85,7 +83,6 @@ public class OvaService {
                 .orElseThrow(() -> new ResourceNotFoundException("OVA no encontrado con id: " + id));
     }
 
-    // Crear nuevo OVA
     public Ova createOva(OvaRequest ovaRequest) {
         Ova ova = new Ova();
         ova.setId(counter.getAndIncrement());
@@ -104,7 +101,6 @@ public class OvaService {
         return ova;
     }
 
-    // Actualizar OVA - ahora lanza excepción
     public Ova updateOva(Long id, OvaRequest ovaRequest) {
         Ova existingOva = getOvaById(id);
         actualizarOvaDesdeRequest(existingOva, ovaRequest);
@@ -122,20 +118,17 @@ public class OvaService {
         ova.setCalificacion(request.getCalificacion());
     }
 
-    // Eliminar OVA - ahora lanza excepción
     public void deleteOva(Long id) {
         Ova ova = getOvaById(id);
         ova.setActivo(false);
     }
 
-    // Buscar OVAs por categoría
     public List<Ova> getOvasByCategoria(String categoria) {
         return ovas.stream()
                 .filter(ova -> ova.getCategoria().equalsIgnoreCase(categoria) && ova.getActivo())
                 .collect(Collectors.toList());
     }
 
-    // Buscar OVAs por título (búsqueda parcial)
     public List<Ova> searchOvasByTitulo(String titulo) {
         return ovas.stream()
                 .filter(ova -> ova.getTitulo().toLowerCase().contains(titulo.toLowerCase()) && ova.getActivo())
